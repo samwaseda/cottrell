@@ -12,7 +12,7 @@ class Dislocation:
         lattice_constant=2.855312531,
         repeat_per_angstrom=100,
         repeat_z=4,
-        buffer=20,
+        buffer_length=20,
         C_11=1.51830577,
         C_12=0.905516251,
         C_44=0.724588867
@@ -20,7 +20,7 @@ class Dislocation:
         self.lattice_constant = lattice_constant
         self.repeat_per_angstrom = repeat_per_angstrom
         self.repeat_z = repeat_z
-        self.buffer = buffer
+        self.buffer_length = buffer_length
         self.directions = np.array([[1, -2, 1], [1, 0, -1], [1, 1, 1]])
         self._medium = None
         self.C_11 = C_11
@@ -47,9 +47,9 @@ class Dislocation:
     @property
     def _structure_buffered(self):
         structure = self._structure_large_pbc
-        structure.cell[0, 0] += 2 * self.buffer
-        structure.cell[1, 1] += 2 * self.buffer
-        structure.positions[:, :2] += self.buffer
+        structure.cell[0, 0] += 2 * self.buffer_length
+        structure.cell[1, 1] += 2 * self.buffer_length
+        structure.positions[:, :2] += self.buffer_length
         return structure
 
     @property
