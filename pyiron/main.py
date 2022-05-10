@@ -7,6 +7,7 @@ from pyiron_base.job.generic import GenericJob
 from pyiron_base.generic.datacontainer import DataContainer
 from collections import defaultdict
 from tqdm import tqdm
+from pandas import DataFrame
 
 
 class FeCAdatom(GenericJob):  # Create a custom job class
@@ -131,3 +132,15 @@ class FeCAdatom(GenericJob):  # Create a custom job class
         super().from_hdf(hdf=hdf, group_name=group_name)
         self.input.from_hdf(hdf=self.project_hdf5)
         self.output.from_hdf(hdf=self.project_hdf5)
+
+
+def get_potential():
+    potential = {}
+    potential['Config'] = [['pair_style eam/alloy\n', 'pair_coeff * * Fe-C-Bec07.eam Fe C\n']]
+    potential['Filename'] = [['/cmmc/u/samsstud/local/pyiron_local/pyiron_local/potentials/Fe-C-Bec07.eam']]
+    potential['Model'] = ['EAM']
+    potential['Name'] = ['Raulot']
+    potential['Species'] = [['Fe', 'C']]
+    potential = DataFrame(potential)
+    return potential
+
