@@ -64,7 +64,7 @@ class FeCAdatom(GenericJob):  # Create a custom job class
                 bulk=basis,
                 dipole_tensor=self.input['dipole_tensor'],
                 medium=self.medium,
-                force_consatnts=self.input['force_constants'],
+                force_constants=self.input['force_constants'],
                 vibration_temperature=self.input['vibration_temperature'],
             )
         return self._diffusion
