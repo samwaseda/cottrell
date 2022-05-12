@@ -1,4 +1,4 @@
-from pyiron_mpie.adatom.octa import Octa
+from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
 

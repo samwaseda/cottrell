@@ -4,10 +4,9 @@ from scipy.spatial import cKDTree
 
 class Octa(Atoms):
     def __init__(
-        self, structure=None, ref_structure=None, min_steinhardt_parameter=0.755, **qwargs
+        self, structure=None, ref_structure=None, **qwargs
     ):
         self._frame = None
-        self._cond = None
         self._max_dist = None
         self._neigh_site = None
         self._strain = None
@@ -34,22 +33,17 @@ class Octa(Atoms):
         return all_candidates
 
     @property
-    def cond(self):
-        if self._cond is None:
-            self._cond = self.neigh_site.distances < self.max_dist
-            self._cond *= np.absolute(np.linalg.det(self.frame)) > 0.5
-        return self._cond
-
-    @property
     def frame(self):
         if self._frame is None:
-            z = np.diff(self.neigh_iron.vecs, axis=-2).squeeze()
-            y = z[self.neigh_site.indices]
-            z = np.ones_like(self.neigh_site.vecs)*z[:,None,:]
-            x = self.neigh_site.vecs
-            self._frame = np.concatenate((x, y, z), axis=-1).reshape(x.shape+(3,))
-            self._frame = np.einsum('nkij,nki->nkij', self._frame, 1/np.linalg.norm(self._frame, axis=-1))
-            self._frame[:,:,-1] = np.cross(self._frame[:,:,0], self._frame[:,:,1], axisa=-1, axisb=-1)
+            dz = np.diff(
+                self.structure.get_neighborhood(self.positions, num_neighbors=2).vecs, axis=-2
+            ).squeeze()
+            dz = dz[self.neigh_site.flattened.atom_numbers]
+            dz /= np.linalg.norm(dz, axis=-1)[:, None]
+            dx = self.neigh_site.flattened.vecs
+            dx /= np.linalg.norm(dx, axis=-1)[:, None]
+            dy = np.cross(dz, dx)
+            self._frame = np.stack([dx, dy, dz], axis=-2)
         return self._frame
 
     def __getitem__(self, key):
@@ -61,15 +55,14 @@ class Octa(Atoms):
     @property
     def max_dist(self):
         if self._max_dist is None:
-            lattice_constant = self.ref_structure.get_neighbors(num_neighbors=1).distances.min()
-            lattice_constant *= 2/np.sqrt(3)
-            self._max_dist = (1+np.sqrt(2))/4*lattice_constant
+            self._max_dist = np.median(self.get_neighbors(num_neighbors=1).distances)
+            self._max_dist *= 0.5 + 1 / np.sqrt(2)
         return self._max_dist
 
     @property
     def neigh_site(self):
         if self._neigh_site is None:
-            self._neigh_site = self.get_neighbors(num_neighbors=4)
+            self._neigh_site = self.get_neighbors(cutoff_radius=self.max_dist)
         return self._neigh_site
 
     @property
@@ -86,9 +79,11 @@ class Octa(Atoms):
         return self._strain
 
     def get_eps(self, epsilon=np.zeros((3,3))):
-        eps = np.einsum('naki,nkl,nalj->naij', self._frame, epsilon+self.strain, self._frame)
+        eps = np.einsum('naki,nkl,nalj->naij', self._frame, epsilon + self.strain, self._frame)
         eps = eps.reshape(eps.shape[:2]+(9,))
         return eps[:,:,np.array([0, 4, 8, 5, 2, 1])]
 
     def get_pairs(self):
-        return np.stack((np.where(self.cond)[0], self.neigh_site.indices[self.cond]), axis=-1)
+        return np.stack(
+            (self.neigh_site.flattened.atom_numbers, self.neigh_site.flattened.indices)
+        , axis=-1)
