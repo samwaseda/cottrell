@@ -2,6 +2,7 @@ from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
 
+
 class Diffusion:
     def __init__(
         self,
@@ -146,7 +147,7 @@ class Diffusion:
             E = eps_polynom(self.octa.get_eps(epsilon=self.induced_strain))
         else:
             E = eps_polynom(self.octa.get_eps())
-        E[E<E_min] = E_min
+        E[E < E_min] = E_min
         return E
 
     def get_transition_tensor(self, temperature, induced_strain=False, E_min=0, kappa=1.0e13):
