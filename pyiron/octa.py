@@ -79,11 +79,14 @@ class Octa(Atoms):
         return self._strain
 
     def get_eps(self, epsilon=np.zeros((3,3))):
-        eps = np.einsum('naki,nkl,nalj->naij', self._frame, epsilon + self.strain, self._frame)
-        eps = eps.reshape(eps.shape[:2]+(9,))
-        return eps[:,:,np.array([0, 4, 8, 5, 2, 1])]
+        eps = np.einsum(
+            'nki,nkl,nlj->nij', self.frame, (epsilon + self.strain)[self.get_pairs().T[0]], self.frame
+        )
+        eps = eps.reshape(len(eps), 9)
+        return eps[:, np.array([0, 4, 8, 5, 2, 1])]
 
     def get_pairs(self):
         return np.stack(
-            (self.neigh_site.flattened.atom_numbers, self.neigh_site.flattened.indices)
-        , axis=-1)
+            (self.neigh_site.flattened.atom_numbers, self.neigh_site.flattened.indices),
+            axis=-1
+        )
