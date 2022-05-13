@@ -1,6 +1,7 @@
 from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
+from pint import UnitRegistry
 
 
 class Diffusion:
@@ -32,6 +33,8 @@ class Diffusion:
         self._kmesh = None
         self._psi_k_coeff = None
         self._self_strain = None
+        self.ureg = UnitRegistry()
+        self.kB = (1 * self.ureg.kelvin * self.ureg.boltzmann_constant).magnitude
 
     @property
     def vibration_temperature(self):
@@ -151,10 +154,9 @@ class Diffusion:
         return E
 
     def get_transition_tensor(self, temperature, induced_strain=False, E_min=0, kappa=1.0e13):
-        pairs = self.octa.get_pairs()
-        K = kappa*np.exp(-self._get_energy(induced_strain, E_min)/(8.617e-5*temperature))
+        K = kappa * np.exp(-self._get_energy(induced_strain, E_min) / (self.kB * temperature))
         K = coo_matrix(
-            (K[self.octa.cond], (pairs[:,0], pairs[:,1])),
+            (K, (*self.octa.get_pairs().T,)),
             shape=(len(self.phi), len(self.phi))
         )
         return K
