@@ -32,7 +32,7 @@ class FeCAdatom(GenericJob):  # Create a custom job class
         self.input['temperature'] = 300
         self.input['minimum_energy'] = 0.0
         self.input['vibration_temperature'] = 1
-        self.input['k_points'] = 20
+        self.input['k_point_density'] = 1
         self.input['max_flow'] = 0.1
         self._diffusion = None
         self._medium = None
@@ -66,6 +66,7 @@ class FeCAdatom(GenericJob):  # Create a custom job class
                 medium=self.medium,
                 force_constants=self.input['force_constants'],
                 vibration_temperature=self.input['vibration_temperature'],
+                k_point_density=self.input['k_point_density'],
             )
         return self._diffusion
 

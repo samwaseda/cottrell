@@ -13,7 +13,7 @@ class Diffusion:
         medium,
         force_constants,
         vibration_temperature=1,
-        k_points=20,
+        k_point_density=1,
         k_origin=None,
         optimize=True,
     ):
@@ -22,9 +22,11 @@ class Diffusion:
         self.phi = None
         self.chemical_interactions = {}
         self._dipole_tensor = dipole_tensor
+        self._dipole_tensor_all = None
         self.medium = medium
         self._force_constants = force_constants
-        self.k_points = k_points
+        self._force_constants_all = None
+        self.k_point_density = k_point_density
         self.vibration_temperature = vibration_temperature
         if k_origin is None:
             k_origin = np.random.random(3)*0.01
@@ -79,23 +81,27 @@ class Diffusion:
 
     @property
     def dipole_tensor(self):
-        return np.einsum(
-            'nik,kl,njl->nij',
-            self.octa.frame[:,0],
-            self._dipole_tensor,
-            self.octa.frame[:,0],
-            optimize=self.optimize
-        )
+        if self._dipole_tensor_all is None:
+            self._dipole_tensor_all = np.einsum(
+                'nik,kl,njl->nij',
+                self.octa.frame_first,
+                self._dipole_tensor,
+                self.octa.frame_first,
+                optimize=self.optimize
+            )
+        return self._dipole_tensor_all
 
     @property
     def force_constants(self):
-        return np.einsum(
-            'nik,kl,njl->nij',
-            self.octa.frame[:,0],
-            self._force_constants,
-            self.octa.frame[:,0],
-            optimize=self.optimize
-        )
+        if self._force_constants_all is None:
+            self._force_constants_all = np.einsum(
+                'nik,kl,njl->nij',
+                self.octa.frame_first,
+                self._force_constants,
+                self.octa.frame_first,
+                optimize=self.optimize
+            )
+        return self._force_constants_all
 
     @property
     def psi(self):
@@ -133,9 +139,13 @@ class Diffusion:
     @property
     def kmesh(self):
         if self._kmesh is None:
-            K_max = self.k_points/self.octa.structure.cell.diagonal()
-            k = np.linspace(0, K_max, self.k_points)*2*np.pi+self.k_origin
-            self._kmesh = np.concatenate(np.meshgrid(*k.T)).reshape(3, -1).T
+            K_max = np.ones(3) * self.k_point_density
+            n_k = np.rint(self.octa.structure.cell.diagonal() * self.k_point_density).astype(int)
+            k = [
+                np.linspace(0, kk, nn) * 2 * np.pi + ko
+                for kk, nn, ko in zip(K_max, n_k, self.k_origin)
+            ]
+            self._kmesh = np.concatenate(np.meshgrid(*k)).reshape(3, -1).T
         return self._kmesh
 
     def set_initial_concentration(self, concentration, relative_variance=0):

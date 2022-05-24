@@ -22,15 +22,24 @@ class Octa(Atoms):
         else:
             super().__init__(**qwargs)
 
+    @property
+    def _is_bcc(self):
+        neigh = self.structure.get_neighbors(num_neighbors=8)
+        return neigh.get_steinhardt_parameter(4) > 0.45
+
     def _get_interstitials(self):
         neigh = self.structure.get_neighbors(num_neighbors=14)
-        cna = self.structure.analyse.pyscal_cna_adaptive(mode='str')
         all_candidates = 0.5 * neigh.vecs[:, 8:] + self.structure.positions[:, None, :]
-        all_candidates = all_candidates[cna == 'bcc'].reshape(-1, 3)
+        all_candidates = all_candidates[self._is_bcc].reshape(-1, 3)
         all_candidates = self.structure.analyse.cluster_positions(all_candidates)
         pairs = self.structure.get_neighborhood(all_candidates, num_neighbors=2).indices
-        all_candidates = all_candidates[np.all(cna[pairs] == 'bcc', axis=-1)]
+        all_candidates = all_candidates[np.all(self._is_bcc[pairs], axis=-1)]
         return all_candidates
+
+    @property
+    def frame_first(self):
+        indices = np.unique(self.neigh_site.flattened.atom_numbers, return_index=True)[1]
+        return self.frame[indices]
 
     @property
     def frame(self):
