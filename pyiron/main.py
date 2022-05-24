@@ -14,7 +14,7 @@ class FeCAdatom(GenericJob):  # Create a custom job class
     def __init__(self, project, job_name):
         super().__init__(project, job_name)
         self.input = DataContainer(table_name='input')
-        self.output = DataContainer(table_name='input')
+        self.output = DataContainer(table_name='output')
         self.input['kappa'] = 1e13
         self.input['dt'] = 1e-6
         self.input['n_outer_loops'] = 10000
