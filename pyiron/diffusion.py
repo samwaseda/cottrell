@@ -52,13 +52,26 @@ class Diffusion:
         return self.medium.get_greens_function(self.kmesh, fourier=True)
 
     @property
+    def psi_k_coeff(self):
+        if self._psi_k_coeff is None:
+            self._psi_k_coeff = np.einsum(
+                'kr,kr,rij->krij',
+                self.gauss_k,
+                np.exp(-1j*np.einsum('kx,rx->kr', self.kmesh, self.octa.positions)),
+                self.dipole_tensor,
+                optimize=self.optimize
+            )
+        return self.psi_k_coeff
+
+    @property
     def induced_strain(self):
         strain = np.real(np.einsum(
-            'Kj,Kl,Kik,Kkl,KR->Rij',
+            'Kj,Kl,Kik,r,Krkl,KR->Rij',
             self.kmesh,
             self.kmesh,
             self.G_k,
-            self.psi_k,
+            self.phi,
+            self.psi_k_coeff,
             np.exp(1j*np.einsum('Kx,Rx->KR', self.kmesh, self.octa.positions)),
             optimize=self.optimize
         ))/self.kspace
@@ -119,18 +132,6 @@ class Diffusion:
             np.linalg.inv(self.force_constants),
             self.kmesh
         ))
-
-    @property
-    def psi_k(self):
-        if self._psi_k_coeff is None:
-            self._psi_k_coeff = np.einsum(
-                'kr,kr,rij->krij',
-                self.gauss_k,
-                np.exp(-1j*np.einsum('kx,rx->kr', self.kmesh, self.octa.positions)),
-                self.dipole_tensor,
-                optimize=self.optimize
-            )
-        return np.einsum('r,krij->kij', self.phi, self._psi_k_coeff)
 
     @property
     def kspace(self):
