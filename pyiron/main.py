@@ -3,8 +3,8 @@ from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_continuum.elasticity.linear_elasticity import LinearElasticity
 from cottrell.pyiron.diffusion import Diffusion
 import numpy as np
-from pyiron_base.job.generic import GenericJob
-from pyiron_base.generic.datacontainer import DataContainer
+from pyiron_base.jobs.job.generic import GenericJob
+from pyiron_base.storage.datacontainer import DataContainer
 from collections import defaultdict
 from tqdm import tqdm
 from pandas import DataFrame

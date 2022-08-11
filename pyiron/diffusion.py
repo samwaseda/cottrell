@@ -61,7 +61,7 @@ class Diffusion:
                 self.dipole_tensor,
                 optimize=self.optimize
             )
-        return self.psi_k_coeff
+        return self._psi_k_coeff
 
     @property
     def induced_strain(self):
@@ -97,9 +97,9 @@ class Diffusion:
         if self._dipole_tensor_all is None:
             self._dipole_tensor_all = np.einsum(
                 'nik,kl,njl->nij',
-                self.octa.frame_first,
+                self.octa.frame,
                 self._dipole_tensor,
-                self.octa.frame_first,
+                self.octa.frame,
                 optimize=self.optimize
             )
         return self._dipole_tensor_all
@@ -109,9 +109,9 @@ class Diffusion:
         if self._force_constants_all is None:
             self._force_constants_all = np.einsum(
                 'nik,kl,njl->nij',
-                self.octa.frame_first,
+                self.octa.frame,
                 self._force_constants,
-                self.octa.frame_first,
+                self.octa.frame,
                 optimize=self.optimize
             )
         return self._force_constants_all

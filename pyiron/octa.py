@@ -75,22 +75,15 @@ class Octa(Atoms):
         return self._neigh_site
 
     @property
-    def neigh_iron(self):
-        if self._neigh_iron is None:
-            self._neigh_iron = self.structure.get_neighborhood(self.positions, num_neighbors=2)
-        return self._neigh_iron
-
-    @property
     def strain(self):
         if self._strain is None:
             strain = self.structure.analyse.get_strain(self.ref_structure, 8)
-            self._strain = np.mean(strain[self.neigh_iron.indices], axis=1)
+            neigh_iron = self.structure.get_neighborhood(self.tetra_positions, num_neighbors=4)
+            self._strain = np.mean(strain[neigh_iron.indices], axis=1)
         return self._strain
 
     def get_eps(self, epsilon=np.zeros((3,3))):
-        eps = np.einsum(
-            'nki,nkl,nlj->nij', self.frame, (epsilon + self.strain)[self.get_pairs().T[0]], self.frame
-        )
+        eps = np.einsum('nki,nkl,nlj->nij', self.frame, epsilon + self.strain, self.frame)
         eps = eps.reshape(len(eps), 9)
         return eps[:, np.array([0, 4, 8, 5, 2, 1])]
 
@@ -99,3 +92,7 @@ class Octa(Atoms):
             (self.neigh_site.flattened.atom_numbers, self.neigh_site.flattened.indices),
             axis=-1
         )
+
+    @property
+    def tetra_positions(self):
+        return 0.5 * self.neigh_site.flattened.vecs + self.positions[self.neigh_site.flattened.atom_numbers]
