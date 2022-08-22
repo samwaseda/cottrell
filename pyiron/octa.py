@@ -19,8 +19,17 @@ class Octa(Atoms):
                 elements=len(x)*['C'], cell=structure.cell, positions=x, pbc=structure.pbc
             )
             self.center_coordinates_in_unit_cell()
+            x = self._get_tetrahedral()
+            self += Atom(positions=x, cell=self.cell, elements=len(x) * ['H'])
         else:
             super().__init__(**qwargs)
+
+    def _get_tetrahedral(self):
+        c = np.median(self.get_neighbors(num_neighbors=4).distances) * 1.2
+        neigh = self.get_neighbors(cutoff_radius=c)
+        x = self.positions[neigh.flattened.atom_numbers] + 0.5 * neigh.flattened.vecs
+        x = self.get_wrapped_coordinates(x)
+        return self.analyse.cluster_positions(x, eps=0.2)
 
     @property
     def _is_bcc(self):
