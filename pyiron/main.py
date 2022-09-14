@@ -19,14 +19,16 @@ class FeCAdatom(GenericJob):  # Create a custom job class
         self.input['dt'] = 1e-6
         self.input['n_outer_loops'] = 10000
         self.input['n_inner_loops'] = 10
+        self.input['n_print'] = 1
         self.input['lattice_parameter'] = 2.87
         self.input['C_11'] = 1.51830577
         self.input['C_12'] = 0.905516251
         self.input['C_44'] = 0.724588867
         self.input['orientation'] = np.eye(3)
-        self.input['dipole_tensor'] = np.array([3.40030112, 3.40030112, 8.03096531])*np.eye(3)
-        self.input['force_constants'] = np.array([10.03435345, 10.03435345, 17.60546082])*np.eye(3)
-        self.input['chemical_interactions'] = [-0.20490381, 0.35490381056766584]
+        self.input['dipole_tensor'] = np.array([8.03096531, 3.40030112, 3.40030112]) * np.eye(3)
+        self.input['force_constants'] = np.array(
+            [17.60546082, 10.03435345, 10.03435345]
+        ) * np.eye(3)
         self.input['concentration'] = 0.01
         self.input['relative_variance'] = 0.5
         self.input['temperature'] = 300
@@ -65,28 +67,17 @@ class FeCAdatom(GenericJob):  # Create a custom job class
                 dipole_tensor=self.input['dipole_tensor'],
                 medium=self.medium,
                 force_constants=self.input['force_constants'],
+                concentration=self.input['concentration'],
+                relative_variance=self.input['relative_variance'],
                 vibration_temperature=self.input['vibration_temperature'],
                 k_point_density=self.input['k_point_density'],
             )
         return self._diffusion
 
-    def set_chemical_interactions(self):
-        coeff = self.input['chemical_interactions']
-        a_0 = self.input['lattice_parameter']
-        neigh = self.diffusion.octa.get_neighbors(num_neighbors=None, cutoff_radius=1.7*a_0)
-        cond = neigh.distances < (1+np.sqrt(2))/4*a_0
-        pairs = np.stack((np.where(cond)[0], neigh.indices[cond]), axis=-1)
-        # cond = (neigh.distances > 0.5*(1/np.sqrt(2)+1/np.sqrt(3))*a_0)*(neigh.distances < 1.7*a_0)
-        cond = (neigh.distances > (1+np.sqrt(2))/4*a_0)*(neigh.distances < 1.7*a_0)
-        self.diffusion.set_chemical_interactions(
-            np.concatenate((pairs, np.stack((np.where(cond)[0], neigh.indices[cond]), axis=-1))),
-            np.concatenate((np.inf*np.ones(len(pairs)), coeff[0]*neigh.distances[cond]/a_0+coeff[1]))
-        )
-
     def run_adatom(self):
         dt = self.input['dt']
         acc_time = 0
-        for _ in tqdm(range(self.input['n_outer_loops'])):
+        for i_cycle in tqdm(range(self.input['n_outer_loops'])):
             temperature = self.input['temperature']
             K = self.diffusion.get_transition_tensor(
                 temperature,
@@ -94,9 +85,9 @@ class FeCAdatom(GenericJob):  # Create a custom job class
                 E_min=self.input['minimum_energy'],
             )
             for _ in range(self.input['n_inner_loops']):
-                D = self.diffusion.get_availability_tensor(temperature)
-                source = self.diffusion.phi/(1-self.diffusion.phi)
-                dphi = D*K.T.dot(source)-source*K.dot(D)
+                source = self.diffusion.phi
+                availability = 1 - self.diffusion.phi
+                dphi = availability * K.T.dot(source) - source * K.dot(availability)
                 dt *= 1.1
                 while (
                     np.any(-dt*dphi/self.input['max_flow'] > self.diffusion.phi)
@@ -105,20 +96,13 @@ class FeCAdatom(GenericJob):  # Create a custom job class
                     dt /= 2
                 self.diffusion.phi += dt*dphi
                 acc_time += dt
-            self.output['order_parameter'].append(self.diffusion.order_parameter)
-            self.output['time'].append(acc_time)
-            self.output['std'].append(np.std(self.diffusion.phi))
-            self.output['phi'].append(self.diffusion.phi.copy())
-
-    def set_initial_concentration(self):
-        self.diffusion.set_initial_concentration(
-            self.input['concentration'],
-            relative_variance=self.input['relative_variance']
-        )
+            if i_cycle % self.input['n_print'] == 0:
+                self.output['order_parameter'].append(self.diffusion.order_parameter)
+                self.output['time'].append(acc_time)
+                self.output['std'].append(np.std(self.diffusion.phi))
+                self.output['phi'].append(self.diffusion.phi.copy())
 
     def run_static(self):
-        if len(self.diffusion.chemical_interactions) == 0:
-            self.set_chemical_interactions()
         if self.diffusion.phi is None:
             self.set_initial_concentration()
         self.run_adatom()
@@ -133,6 +117,9 @@ class FeCAdatom(GenericJob):  # Create a custom job class
         super().from_hdf(hdf=hdf, group_name=group_name)
         self.input.from_hdf(hdf=self.project_hdf5)
         self.output.from_hdf(hdf=self.project_hdf5)
+
+    def write_input(self):
+        pass
 
 
 def get_potential():
