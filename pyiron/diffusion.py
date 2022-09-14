@@ -4,6 +4,22 @@ from scipy.sparse import coo_matrix
 from pint import UnitRegistry
 
 
+@nb.njit(fastmath=True,parallel=True,cache=True)
+def nb_einsum(kmesh, G_k, gauss_k, dipole_tensor):
+
+    #allocate output
+    res = np.zeros((len(kmesh), len(dipole_tensor), 3, 3))
+
+    for K in range(kmesh.shape[0]):
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    for l in range(3):
+                        for r in range(dipole_tensor.shape[0]):
+                            res[K, r, i, j] += kmesh[K, j] * kmesh[K, l] * G_k[K, i, k] * gauss_k[K, r] * dipole_tensor[r, k, l]
+    return res
+
+
 class Diffusion:
     def __init__(
         self,
