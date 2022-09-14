@@ -2,21 +2,27 @@ from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
 from pint import UnitRegistry
+import numba as nb
 
 
-@nb.njit(fastmath=True,parallel=True,cache=True)
-def nb_einsum(kmesh, G_k, gauss_k, dipole_tensor):
-
-    #allocate output
-    res = np.zeros((len(kmesh), len(dipole_tensor), 3, 3))
-
-    for K in range(kmesh.shape[0]):
-        for i in range(3):
-            for j in range(3):
-                for k in range(3):
-                    for l in range(3):
-                        for r in range(dipole_tensor.shape[0]):
-                            res[K, r, i, j] += kmesh[K, j] * kmesh[K, l] * G_k[K, i, k] * gauss_k[K, r] * dipole_tensor[r, k, l]
+@nb.njit(fastmath=True, parallel=True, cache=True)
+def nb_einsum(km, G, g, d, x):
+    res = np.zeros((len(d), len(x), 3, 3))
+    kx = np.zeros((len(km), len(x)))
+    for K in np.arange(len(km)):
+        for R in np.arange(len(x)):
+            for i in np.arange(3):
+                kx[K, R] += km[K, i] * x[R, i]
+    ef = np.exp(-1j * kx)
+    eb = np.exp(1j * kx)
+    for K in np.arange(km.shape[0]):
+        for i in np.arange(3):
+            for j in np.arange(3):
+                for k in np.arange(3):
+                    for ll in np.arange(3):
+                        for r in np.arange(d.shape[0]):
+                            for R in np.arange(len(x)):
+                                res[r, R, i, j] += km[K, j] * km[K, ll] * G[K, i, k] * g[K, r] * d[r, k, ll] * np.real(ef[K, r] * eb[K, R])
     return res
 
 
@@ -102,21 +108,8 @@ class Diffusion:
     @property
     def strain_coeff(self):
         if self._strain_coeff is None:
-            s = np.einsum(
-                'Kj,Kl,Kik,Kr,rkl->Krij',
-                self.kmesh,
-                self.kmesh,
-                self.G_k,
-                self.gauss_k,
-                self.dipole_tensor,
-                optimize=self.optimize
-            )
-            s = np.einsum(
-                'Krij,Kr,KR->rRij',
-                s,
-                np.exp(-1j * np.einsum('kx,rx->kr', self.kmesh, self.octa.octa_positions)),
-                np.exp(1j * np.einsum('Kx,Rx->KR', self.kmesh, self.octa.positions)),
-                optimize=self.optimize
+            s = nb_einsum(
+                self.kmesh, self.G_k, self.gauss_k, self.dipole_tensor, self.octa.octa_positions
             )
             self._strain_coeff = np.real(s + np.einsum('rRij->rRji', s)) / self.kspace / 2
         return self._strain_coeff
