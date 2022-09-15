@@ -2,10 +2,10 @@ from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
 from pint import UnitRegistry
-import numba as nb
+from numba import njit
 
 
-@nb.njit(fastmath=True, parallel=True, cache=True)
+@njit(fastmath=True, parallel=True)
 def nb_einsum(km, G, g, d, x):
     res = np.zeros((len(d), len(x), 3, 3))
     kx = np.zeros((len(km), len(x)))
