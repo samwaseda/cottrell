@@ -2,28 +2,6 @@ from cottrell.pyiron.octa import Octa
 import numpy as np
 from scipy.sparse import coo_matrix
 from pint import UnitRegistry
-from numba import njit
-
-
-@njit(fastmath=True, parallel=True)
-def nb_einsum(km, G, g, d, x):
-    res = np.zeros((len(d), len(x), 3, 3))
-    kx = np.zeros((len(km), len(x)))
-    for K in np.arange(len(km)):
-        for R in np.arange(len(x)):
-            for i in np.arange(3):
-                kx[K, R] += km[K, i] * x[R, i]
-    ef = np.exp(-1j * kx)
-    eb = np.exp(1j * kx)
-    for K in np.arange(km.shape[0]):
-        for i in np.arange(3):
-            for j in np.arange(3):
-                for k in np.arange(3):
-                    for ll in np.arange(3):
-                        for r in np.arange(d.shape[0]):
-                            for R in np.arange(len(x)):
-                                res[r, R, i, j] += km[K, j] * km[K, ll] * G[K, i, k] * g[K, r] * d[r, k, ll] * np.real(ef[K, r] * eb[K, R])
-    return res
 
 
 class Diffusion:
@@ -108,8 +86,15 @@ class Diffusion:
     @property
     def strain_coeff(self):
         if self._strain_coeff is None:
-            s = nb_einsum(
-                self.kmesh, self.G_k, self.gauss_k, self.dipole_tensor, self.octa.octa_positions
+            s = np.einsum(
+                'Kj,Kl,Kik,Kr,rkl->Krij',
+                self.kmesh,
+                self.kmesh,
+                self.G_k,
+                self.gauss_k,
+                self.dipole_tensor,
+                self.octa.octa_positions,
+                optimize=self.optimize
             )
             self._strain_coeff = np.real(s + np.einsum('rRij->rRji', s)) / self.kspace / 2
         return self._strain_coeff
