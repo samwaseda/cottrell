@@ -1,18 +1,12 @@
 # distutils: language = c++
 
+from Fourier cimport Fourier as Fouriercpp
 from libcpp.vector cimport vector
+import numpy as np
 
-cdef extern from "Fourier.cpp":
-    pass
+cdef class Fourier:
+    cdef Fouriercpp c_fourier
 
-cdef extern from "Fourier.h":
-    cdef cppclass Fourier:
-        Fourier() except +
-        vector[vector[vector[vector[double]]]] get_strain_coeff(
-            vector[vector[double]],
-            vector[vector[vector[double]]],
-            vector[vector[double]],
-            vector[vector[vector[double]]],
-            vector[vector[double]]
-        )
+    def get_strain_coeff(self, km, G, g, d, x):
+        return self.c_fourier.get_strain_coeff(km, G, g, d, x)
 
